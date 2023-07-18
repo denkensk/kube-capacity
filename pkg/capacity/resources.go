@@ -26,6 +26,7 @@ import (
 
 // SupportedSortAttributes lists the valid sorting options
 var SupportedSortAttributes = [...]string{
+	"gpu.request",
 	"cpu.util",
 	"cpu.request",
 	"cpu.limit",
@@ -55,6 +56,7 @@ type resourceMetric struct {
 type clusterMetric struct {
 	cpu         *resourceMetric
 	memory      *resourceMetric
+	gpu         *resourceMetric
 	nodeMetrics map[string]*nodeMetric
 	podCount    *podCount
 }
@@ -63,6 +65,7 @@ type nodeMetric struct {
 	name       string
 	cpu        *resourceMetric
 	memory     *resourceMetric
+	gpu        *resourceMetric
 	podMetrics map[string]*podMetric
 	podCount   *podCount
 }
@@ -72,6 +75,7 @@ type podMetric struct {
 	namespace        string
 	cpu              *resourceMetric
 	memory           *resourceMetric
+	gpu              *resourceMetric
 	containerMetrics map[string]*containerMetric
 }
 
@@ -79,6 +83,7 @@ type containerMetric struct {
 	name   string
 	cpu    *resourceMetric
 	memory *resourceMetric
+	gpu    *resourceMetric
 }
 
 type podCount struct {
@@ -91,6 +96,7 @@ func buildClusterMetric(podList *corev1.PodList, pmList *v1beta1.PodMetricsList,
 	cm := clusterMetric{
 		cpu:         &resourceMetric{resourceType: "cpu"},
 		memory:      &resourceMetric{resourceType: "memory"},
+		gpu:         &resourceMetric{resourceType: GPU_TYPE},
 		nodeMetrics: map[string]*nodeMetric{},
 		podCount:    &podCount{},
 	}
@@ -116,6 +122,10 @@ func buildClusterMetric(podList *corev1.PodList, pmList *v1beta1.PodMetricsList,
 				resourceType: "memory",
 				allocatable:  node.Status.Allocatable["memory"],
 			},
+			gpu: &resourceMetric{
+				resourceType: GPU_TYPE,
+				allocatable:  node.Status.Allocatable[corev1.ResourceName(GPU_TYPE)],
+			},
 			podMetrics: map[string]*podMetric{},
 			podCount: &podCount{
 				current:     tmpPodCount,
@@ -131,6 +141,7 @@ func buildClusterMetric(podList *corev1.PodList, pmList *v1beta1.PodMetricsList,
 		for _, nm := range nmList.Items {
 			cm.nodeMetrics[nm.Name].cpu.utilization = nm.Usage["cpu"]
 			cm.nodeMetrics[nm.Name].memory.utilization = nm.Usage["memory"]
+			cm.nodeMetrics[nm.Name].gpu.utilization = nm.Usage[corev1.ResourceName(GPU_TYPE)]
 		}
 	}
 
@@ -186,6 +197,11 @@ func (cm *clusterMetric) addPodMetric(pod *corev1.Pod, podMetrics v1beta1.PodMet
 			request:      req["memory"],
 			limit:        limit["memory"],
 		},
+		gpu: &resourceMetric{
+			resourceType: GPU_TYPE,
+			request:      req[corev1.ResourceName(GPU_TYPE)],
+			limit:        limit[corev1.ResourceName(GPU_TYPE)],
+		},
 		containerMetrics: map[string]*containerMetric{},
 	}
 
@@ -204,6 +220,12 @@ func (cm *clusterMetric) addPodMetric(pod *corev1.Pod, podMetrics v1beta1.PodMet
 				limit:        container.Resources.Limits["memory"],
 				allocatable:  nm.memory.allocatable,
 			},
+			gpu: &resourceMetric{
+				resourceType: GPU_TYPE,
+				request:      container.Resources.Requests[corev1.ResourceName(GPU_TYPE)],
+				limit:        container.Resources.Limits[corev1.ResourceName(GPU_TYPE)],
+				allocatable:  nm.gpu.allocatable,
+			},
 		}
 	}
 
@@ -214,6 +236,8 @@ func (cm *clusterMetric) addPodMetric(pod *corev1.Pod, podMetrics v1beta1.PodMet
 
 		nm.cpu.request.Add(req["cpu"])
 		nm.cpu.limit.Add(limit["cpu"])
+		nm.gpu.request.Add(req[corev1.ResourceName(GPU_TYPE)])
+		nm.gpu.limit.Add(limit[corev1.ResourceName(GPU_TYPE)])
 		nm.memory.request.Add(req["memory"])
 		nm.memory.limit.Add(limit["memory"])
 	}
@@ -225,6 +249,8 @@ func (cm *clusterMetric) addPodMetric(pod *corev1.Pod, podMetrics v1beta1.PodMet
 			pm.cpu.utilization.Add(container.Usage["cpu"])
 			pm.containerMetrics[container.Name].memory.utilization = container.Usage["memory"]
 			pm.memory.utilization.Add(container.Usage["memory"])
+			pm.containerMetrics[container.Name].gpu.utilization = container.Usage[corev1.ResourceName(GPU_TYPE)]
+			pm.gpu.utilization.Add(container.Usage[corev1.ResourceName(GPU_TYPE)])
 		}
 	}
 }
@@ -232,6 +258,7 @@ func (cm *clusterMetric) addPodMetric(pod *corev1.Pod, podMetrics v1beta1.PodMet
 func (cm *clusterMetric) addNodeMetric(nm *nodeMetric) {
 	cm.cpu.addMetric(nm.cpu)
 	cm.memory.addMetric(nm.memory)
+	cm.gpu.addMetric(nm.gpu)
 }
 
 func (cm *clusterMetric) getSortedNodeMetrics(sortBy string) []*nodeMetric {
@@ -248,6 +275,8 @@ func (cm *clusterMetric) getSortedNodeMetrics(sortBy string) []*nodeMetric {
 		m2 := sortedNodeMetrics[j]
 
 		switch sortBy {
+		case "gpu.request":
+			return m2.gpu.request.Value() < m1.gpu.request.Value()
 		case "cpu.util":
 			return m2.cpu.utilization.MilliValue() < m1.cpu.utilization.MilliValue()
 		case "cpu.limit":
@@ -294,6 +323,8 @@ func (nm *nodeMetric) getSortedPodMetrics(sortBy string) []*podMetric {
 		m2 := sortedPodMetrics[j]
 
 		switch sortBy {
+		case "gpu.request":
+			return m2.gpu.request.Value() < m1.gpu.request.Value()
 		case "cpu.util":
 			return m2.cpu.utilization.MilliValue() < m1.cpu.utilization.MilliValue()
 		case "cpu.limit":
@@ -330,6 +361,7 @@ func (nm *nodeMetric) addPodUtilization() {
 	for _, pm := range nm.podMetrics {
 		nm.cpu.utilization.Add(pm.cpu.utilization)
 		nm.memory.utilization.Add(pm.memory.utilization)
+		nm.gpu.utilization.Add(pm.gpu.utilization)
 	}
 }
 
@@ -347,6 +379,8 @@ func (pm *podMetric) getSortedContainerMetrics(sortBy string) []*containerMetric
 		m2 := sortedContainerMetrics[j]
 
 		switch sortBy {
+		case "gpu.request":
+			return m2.gpu.request.Value() < m1.gpu.request.Value()
 		case "cpu.util":
 			return m2.cpu.utilization.MilliValue() < m1.cpu.utilization.MilliValue()
 		case "cpu.limit":

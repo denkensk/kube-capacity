@@ -35,6 +35,7 @@ var kubeConfig string
 var outputFormat string
 var sortBy string
 var availableFormat bool
+var gpuType string
 
 var rootCmd = &cobra.Command{
 	Use:   "kube-capacity",
@@ -51,7 +52,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		capacity.FetchAndPrint(showContainers, showPods, showUtil, showPodCount, availableFormat, podLabels, nodeLabels,
-			namespaceLabels, namespace, kubeContext, kubeConfig, outputFormat, sortBy)
+			namespaceLabels, namespace, kubeContext, kubeConfig, outputFormat, sortBy, gpuType)
 	},
 }
 
@@ -81,6 +82,8 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&sortBy,
 		"sort", "", "name",
 		fmt.Sprintf("attribute to sort results by (supports: %v)", capacity.SupportedSortAttributes))
+	rootCmd.PersistentFlags().StringVarP(&gpuType,
+		"gpu-type", "g", "shopee.com/vcuda-core-t4-15gb", "gpu resource name")
 
 	rootCmd.PersistentFlags().StringVarP(&outputFormat,
 		"output", "o", capacity.TableOutput,

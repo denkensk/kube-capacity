@@ -24,6 +24,7 @@ import (
 type listNodeMetric struct {
 	Name     string              `json:"name"`
 	CPU      *listResourceOutput `json:"cpu,omitempty"`
+	GPU      *listResourceOutput `json:"gpu"`
 	Memory   *listResourceOutput `json:"memory,omitempty"`
 	Pods     []*listPod          `json:"pods,omitempty"`
 	PodCount string              `json:"podCount,omitempty"`
@@ -33,6 +34,7 @@ type listPod struct {
 	Name       string              `json:"name"`
 	Namespace  string              `json:"namespace"`
 	CPU        *listResourceOutput `json:"cpu"`
+	GPU        *listResourceOutput `json:"gpu"`
 	Memory     *listResourceOutput `json:"memory"`
 	Containers []listContainer     `json:"containers,omitempty"`
 }
@@ -40,6 +42,7 @@ type listPod struct {
 type listContainer struct {
 	Name   string              `json:"name"`
 	CPU    *listResourceOutput `json:"cpu"`
+	GPU    *listResourceOutput `json:"gpu"`
 	Memory *listResourceOutput `json:"memory"`
 }
 
@@ -60,6 +63,7 @@ type listClusterMetrics struct {
 type listClusterTotals struct {
 	CPU      *listResourceOutput `json:"cpu"`
 	Memory   *listResourceOutput `json:"memory"`
+	GPU      *listResourceOutput `json:"gpu"`
 	PodCount string              `json:"podCount,omitempty"`
 }
 
@@ -103,6 +107,7 @@ func (lp *listPrinter) buildListClusterMetrics() listClusterMetrics {
 	response.ClusterTotals = &listClusterTotals{
 		CPU:    lp.buildListResourceOutput(lp.cm.cpu),
 		Memory: lp.buildListResourceOutput(lp.cm.memory),
+		GPU:    lp.buildListResourceOutput(lp.cm.gpu),
 	}
 
 	if lp.showPodCount {
@@ -114,6 +119,7 @@ func (lp *listPrinter) buildListClusterMetrics() listClusterMetrics {
 		node.Name = nodeMetric.name
 		node.CPU = lp.buildListResourceOutput(nodeMetric.cpu)
 		node.Memory = lp.buildListResourceOutput(nodeMetric.memory)
+		node.GPU = lp.buildListResourceOutput(nodeMetric.gpu)
 
 		if lp.showPodCount {
 			node.PodCount = nodeMetric.podCount.podCountString()
@@ -126,6 +132,7 @@ func (lp *listPrinter) buildListClusterMetrics() listClusterMetrics {
 				pod.Namespace = podMetric.namespace
 				pod.CPU = lp.buildListResourceOutput(podMetric.cpu)
 				pod.Memory = lp.buildListResourceOutput(podMetric.memory)
+				pod.GPU = lp.buildListResourceOutput(podMetric.gpu)
 
 				if lp.showContainers {
 					for _, containerMetric := range podMetric.getSortedContainerMetrics(lp.sortBy) {
@@ -133,6 +140,7 @@ func (lp *listPrinter) buildListClusterMetrics() listClusterMetrics {
 							Name:   containerMetric.name,
 							Memory: lp.buildListResourceOutput(containerMetric.memory),
 							CPU:    lp.buildListResourceOutput(containerMetric.cpu),
+							GPU:    lp.buildListResourceOutput(containerMetric.gpu),
 						})
 					}
 				}

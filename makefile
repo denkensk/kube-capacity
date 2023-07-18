@@ -2,10 +2,11 @@
 #BUILDENVVAR=CGO_ENABLED=0
 
 .PHONY: all
-all: build
+all: clean build
 
 .PHONY: build
-build: goos=linux goarch=x86_64 go build -ldflags '-w' -o bin/kube-capacity cmd/main.go
+build:
+	GOOS=linux GOARCH=amd64 go build -ldflags '-w' -o bin/kube-capacity cmd/main.go
 
 #.PHONY: fixcodec
 #	hack/fix-codec-factory.sh

@@ -38,6 +38,7 @@ type tableLine struct {
 	namespace      string
 	pod            string
 	container      string
+	gpuRequests    string
 	cpuRequests    string
 	cpuLimits      string
 	cpuUtil        string
@@ -52,6 +53,7 @@ var headerStrings = tableLine{
 	namespace:      "NAMESPACE",
 	pod:            "POD",
 	container:      "CONTAINER",
+	gpuRequests:    "GPU REQUESTS",
 	cpuRequests:    "CPU REQUESTS",
 	cpuLimits:      "CPU LIMITS",
 	cpuUtil:        "CPU UTIL",
@@ -117,6 +119,7 @@ func (tp *tablePrinter) getLineItems(tl *tableLine) []string {
 		lineItems = append(lineItems, tl.container)
 	}
 
+	lineItems = append(lineItems, tl.gpuRequests)
 	lineItems = append(lineItems, tl.cpuRequests)
 	lineItems = append(lineItems, tl.cpuLimits)
 
@@ -144,6 +147,7 @@ func (tp *tablePrinter) printClusterLine() {
 		namespace:      "*",
 		pod:            "*",
 		container:      "*",
+		gpuRequests:    tp.cm.gpu.requestString(tp.availableFormat),
 		cpuRequests:    tp.cm.cpu.requestString(tp.availableFormat),
 		cpuLimits:      tp.cm.cpu.limitString(tp.availableFormat),
 		cpuUtil:        tp.cm.cpu.utilString(tp.availableFormat),
@@ -160,6 +164,7 @@ func (tp *tablePrinter) printNodeLine(nodeName string, nm *nodeMetric) {
 		namespace:      "*",
 		pod:            "*",
 		container:      "*",
+		gpuRequests:    nm.gpu.requestString(tp.availableFormat),
 		cpuRequests:    nm.cpu.requestString(tp.availableFormat),
 		cpuLimits:      nm.cpu.limitString(tp.availableFormat),
 		cpuUtil:        nm.cpu.utilString(tp.availableFormat),
@@ -176,6 +181,7 @@ func (tp *tablePrinter) printPodLine(nodeName string, pm *podMetric) {
 		namespace:      pm.namespace,
 		pod:            pm.name,
 		container:      "*",
+		gpuRequests:    pm.gpu.requestString(tp.availableFormat),
 		cpuRequests:    pm.cpu.requestString(tp.availableFormat),
 		cpuLimits:      pm.cpu.limitString(tp.availableFormat),
 		cpuUtil:        pm.cpu.utilString(tp.availableFormat),
@@ -191,6 +197,7 @@ func (tp *tablePrinter) printContainerLine(nodeName string, pm *podMetric, cm *c
 		namespace:      pm.namespace,
 		pod:            pm.name,
 		container:      cm.name,
+		gpuRequests:    cm.gpu.requestString(tp.availableFormat),
 		cpuRequests:    cm.cpu.requestString(tp.availableFormat),
 		cpuLimits:      cm.cpu.limitString(tp.availableFormat),
 		cpuUtil:        cm.cpu.utilString(tp.availableFormat),

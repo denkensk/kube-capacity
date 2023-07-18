@@ -28,13 +28,17 @@ import (
 	v1beta1 "k8s.io/metrics/pkg/apis/metrics/v1beta1"
 )
 
+var GPU_TYPE string = "shopee.com/vcuda-core-t4-15gb"
+
 // FetchAndPrint gathers cluster resource data and outputs it
-func FetchAndPrint(showContainers, showPods, showUtil, showPodCount, availableFormat bool, podLabels, nodeLabels, namespaceLabels, namespace, kubeContext, kubeConfig, output, sortBy string) {
+func FetchAndPrint(showContainers, showPods, showUtil, showPodCount, availableFormat bool, podLabels, nodeLabels, namespaceLabels, namespace, kubeContext, kubeConfig, output, sortBy, gpuType string) {
 	clientset, err := kube.NewClientSet(kubeContext, kubeConfig)
 	if err != nil {
 		fmt.Printf("Error connecting to Kubernetes: %v\n", err)
 		os.Exit(1)
 	}
+
+	GPU_TYPE = gpuType
 
 	podList, nodeList := getPodsAndNodes(clientset, podLabels, nodeLabels, namespaceLabels, namespace)
 	var pmList *v1beta1.PodMetricsList
